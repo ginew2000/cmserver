@@ -3,6 +3,7 @@
 import url_pattern
 import utils, msgs
 import pyuv
+import time
 clientsMgr = None
 
 """
@@ -21,6 +22,9 @@ class Client(object):
             self.close()
         self.handler = handlerClass(self)
 
+    def changeHandler(self):
+        self.handler = None
+
     def onRead(self, fd, data, error):
         if not self.handler:
             self.initHandler(data)
@@ -30,18 +34,20 @@ class Client(object):
         self.fd.write(data)
         
     def startRead(self):
-        utils.logDebug(msgs.CLIENT_CONNECTED % str(self.fd.getpeername()))
-        utils.logDebug(msgs.NOW_CLIENTS_COUNT % len(getClientInfo().clientsInfo))
         self.fd.start_read(self.onRead)
 
     def close(self):
-        getClientInfo().closeClient(self.fd)
+        getClientMgr().closeClient(self.fd)
 """
 客户端管理类，全服唯一。
 """
 class ClientsMgr(object):
     def __init__(self):
         self.clientsInfo = {}
+        self.startTime = time.time()
+
+    def getRunTimes(self):
+        return time.time() - self.startTime
 
     def getAllClients(self):
         return self.clientsInfo.iteritems()
@@ -60,7 +66,7 @@ class ClientsMgr(object):
 #-----------------------------------------------------#
 #------------  对外接口 ------------------------------#
 #-----------------------------------------------------#
-def getClientInfo():
+def getClientMgr():
     global clientsMgr
     if not clientsMgr:
         clientsMgr = ClientsMgr()
@@ -77,7 +83,7 @@ def on_read(client, data, error):
 def on_connection(server, error):
     _clientFd = pyuv.TCP(server.loop)
     server.accept(_clientFd)
-    clientInfo = getClientInfo().newClient(_clientFd)
+    clientInfo = getClientMgr().newClient(_clientFd)
     clientInfo.startRead()
 
 def closeAllClients():

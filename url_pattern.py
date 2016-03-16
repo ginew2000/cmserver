@@ -11,14 +11,11 @@ DEFAULT_HTTP_HANDLER = "handler.echo.HttpEcho"
 
 URL_PATTERN = [
     ## 请求前缀， 请求类型，对应处理器class
-    #("^/info$", REQ_TYPE_RAW, "handler.get_info.GetInfo"),
-    #("^/getlog\?", REQ_TYPE_HTTP, "handler.get_log.GetLog"),
+    ("^/info$", REQ_TYPE_RAW, "handler.get_info.GetInfo"),
+    ("^/log$", REQ_TYPE_RAW, "handler.get_log.GetLog"),
 ]
 HTTP_PREFIX_RE = re.compile("(?P<method>\w+?) (?P<uri>.+?) HTTP/1.\d")
-URL_PREFIX_RE = {
-    REQ_TYPE_RAW : {},
-    REQ_TYPE_HTTP : {},
-}
+URL_PREFIX_RE = {}
 
 def getHandlerFromData(data):
     def getCls(handlerName):
@@ -35,6 +32,8 @@ def getHandlerFromData(data):
             URL_PREFIX_RE[reqType][prefixRe] = (prefix, reqType, handlerName)
 
     if not URL_PREFIX_RE:
+        URL_PREFIX_RE[REQ_TYPE_RAW] = {}
+        URL_PREFIX_RE[REQ_TYPE_HTTP] = {}
         initUrlPrefixRegexp()
 
     firstLine = data.split("\n")[0]
@@ -49,12 +48,14 @@ def getHandlerFromData(data):
             matchObj = prefixRe.search(uri)
             if matchObj:
                 return getCls(urlInfo[2])
+        utils.logDebug("use httpraw: [%s]"%uri)
         return getCls(DEFAULT_HTTP_HANDLER)
 
     for prefixRe, urlInfo in URL_PREFIX_RE[REQ_TYPE_RAW].iteritems():
         matchObj = prefixRe.search(firstLine)
         if not matchObj:
             continue
-        return getCls(handlerName)
+        return getCls(urlInfo[2])
+    utils.logDebug("use raw: [%s]"%firstLine)
     return getCls(DEFAULT_RAW_HANDLER)
 

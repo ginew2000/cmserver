@@ -7,7 +7,7 @@ STOP_WORD = "end"
 class RawEcho(object):
     def __init__(self, clientInfo):
         self.clientInfo = clientInfo
-        self.outData = ["welcome to my server. type \"%s\" to quit"%STOP_WORD]
+        self.outData = ["handler: %s. type \"%s\" to quit"%(self.__class__.__name__, STOP_WORD)]
 
     def log(self, msg):
         utils.log(msg, self.__class__.__name__)
@@ -32,7 +32,12 @@ class RawEcho(object):
                 self.clientInfo.close()
                 return
             self.clientInfo.write(data+"\n")
+        self.clientInfo.changeHandler()
 
+    """
+    子类请根据需求来通过data来获得需要输出的内容。
+    结束就写个end在列表里面
+    """
     def setOutput(self, data):
         self.outData.append(data)
 
@@ -50,14 +55,11 @@ Content-Type: text/html; charset=GBK
 Connection: close
 Server: HttpEcho by cmServer
 
-welcome to my server
-\n\n"""]
+welcome to my server. now handler is %s
+\n\n"""%self.__class__.__name__]
 
-    def startWriteMonitor(self):
-        for data in self.getOutput():
-            if data == STOP_WORD:
-                self.clientInfo.write("Bye bye!")
-                self.clientInfo.close()
-                return
-            self.clientInfo.write(data+"<br>")
-        self.clientInfo.close()
+    def setOutput(self, data):
+        self.outData.append("<pre>")
+        self.outData.append(data)
+        self.outData.append("</pre>")
+        self.outData.append(STOP_WORD)
