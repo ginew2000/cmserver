@@ -3,8 +3,15 @@
 import url_pattern
 import utils, msgs
 import pyuv
-import time
+import time, weakref
 clientsMgr = None
+nowCls = weakref.WeakValueDictionary()
+def onHandlerDone(obj):
+    print "onHandlerDone", obj
+    objId = id(obj)
+    if objId in nowCls:
+        del nowCls[objId]
+    print "nowCls: %s"%nowCls.values()
 
 """
 客户端类。管理客户端的读写与初始化。
@@ -20,24 +27,46 @@ class Client(object):
         if not handlerClass:
             utils.logError(msgs.CAN_NOT_FIND_HANDLER % data)
             self.close()
-        self.handler = handlerClass(self)
+        handler = handlerClass(self)
+        weakR = weakref.ref(handler, onHandlerDone)
+        nowCls[id(weakR)] = handler
+        self.handler = handler
 
     def changeHandler(self):
         self.handler = None
 
     def onRead(self, fd, data, error):
         if not self.handler:
-            self.initHandler(data)
+            if data != None:
+                self.initHandler(data)
+            else:
+                self.close()
+                return
         self.handler.read(data)
 
     def write(self, data):
-        self.fd.write(data)
+        if not self.fd.closed:
+            self.fd.write(data)
         
     def startRead(self):
         self.fd.start_read(self.onRead)
 
     def close(self):
+        if self.handler:
+            self.handler.close()
+            self.handler = None
         getClientMgr().closeClient(self.fd)
+        #utils.callback(1, doHunt)
+        print "close  nowCls: %s"%nowCls.values()
+
+def doHunt(timer):
+    print "doHunt"
+    import sys
+    if "/home/zfy/cmserver" not in sys.path:
+        sys.path.append("/home/zfy/cmserver")
+    import leakHunter
+    leakHunter.hunt()
+
 """
 客户端管理类，全服唯一。
 """
@@ -71,14 +100,6 @@ def getClientMgr():
     if not clientsMgr:
         clientsMgr = ClientsMgr()
     return clientsMgr
-
-def on_read(client, data, error):
-    if data is None:
-        client.close()
-        clients.remove(client)
-        return
-    print data
-    client.write(data)
 
 def on_connection(server, error):
     _clientFd = pyuv.TCP(server.loop)

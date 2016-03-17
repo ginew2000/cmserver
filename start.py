@@ -6,6 +6,8 @@ import signal
 import pyuv
 
 import client_info, utils
+#import gc
+#gc.disable()
 
 def startServer():
     def signal_cb(handle, signum):

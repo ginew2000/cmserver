@@ -47,6 +47,9 @@ class RawEcho(object):
             yield data
         return
 
+    def close(self):
+        return
+
 class HttpEcho(RawEcho):
     def __init__(self, clientInfo):
         super(HttpEcho, self).__init__(clientInfo)

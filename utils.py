@@ -47,7 +47,6 @@ def logError (errmsg, handler=None):
     log("[ERROR]%s"%errmsg, handler)
 
 def exceptHook(ty, val, tb):
-    sys.__excepthook__(ty, val, tb)
     localVars = None
     try:
         tag = tb.tb_frame.f_locals.get('__name__')
@@ -58,8 +57,8 @@ def exceptHook(ty, val, tb):
             varDict = {}
             for k, v in tbNext.tb_frame.f_locals.iteritems():
                 sv = str(v)
-                if len(sv) > 200:
-                    varDict[k] = sv[:200] + '...(more)'
+                if len(sv) > 100:
+                    varDict[k] = sv[:100] + '...(more)'
                 else:
                     varDict[k] = sv
             varMsg = str(varDict)
@@ -109,3 +108,14 @@ def callback(waitTime, cb):
     loop = getLibUVLoop()
     timer = pyuv.Timer(loop)
     timer.start(cb, waitTime, 0)
+
+def main():
+    i = 10
+    while i > 0:
+        print i
+        i -= 1
+        sys.stdout.flush()
+        time.sleep(1)
+
+if __name__ == "__main__":
+    main()
