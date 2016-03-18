@@ -11,9 +11,12 @@ DEFAULT_HTTP_HANDLER = "handler.echo.HttpEcho"
 
 URL_PATTERN = [
     ## 请求前缀， 请求类型，对应处理器class
+    ("^/reload$", REQ_TYPE_RAW, "handler.debug.ReloadHandlers"),
+    ("^/eval$", REQ_TYPE_RAW, "handler.debug.EvalHandler"),
     ("^/info$", REQ_TYPE_RAW, "handler.get_info.GetInfo"),
     ("^/test$", REQ_TYPE_RAW, "handler.test.Test"),
     ("^/log$", REQ_TYPE_RAW, "handler.get_log.GetLog"),
+    ("^/log$", REQ_TYPE_HTTP, "handler.get_log.GetLogFromWeb"),
 ]
 HTTP_PREFIX_RE = re.compile("(?P<method>\w+?) (?P<uri>.+?) HTTP/1.\d")
 URL_PREFIX_RE = {}

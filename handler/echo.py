@@ -3,11 +3,23 @@
 import utils, time
 
 STOP_WORD = "end"
+SHOW_TYPES = frozenset([str, int, float, list, dict])
 
 class RawEcho(object):
     def __init__(self, clientInfo):
         self.clientInfo = clientInfo
         self.outData = ["handler: %s. type \"%s\" to quit"%(self.__class__.__name__, STOP_WORD)]
+
+    def __str__(self):
+        ret = ["(%s)"%(self.__class__.__name__)]
+        for attrName in dir(self):
+            attr = getattr(self, attrName)
+            if attrName[0:2] == "__":
+                continue
+            if type(attr) not in SHOW_TYPES:
+                continue
+            ret.append("%s=%s"%(attrName, attr))
+        return ",".join(ret)
 
     def log(self, msg):
         utils.log(msg, self.__class__.__name__)
