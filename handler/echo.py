@@ -1,55 +1,36 @@
 # -*- coding:gbk -*-
 
 import utils, time
+from base import HandlerBase
 
 STOP_WORD = "end"
-SHOW_TYPES = frozenset([str, int, float, list, dict])
 
-class RawEcho(object):
+class RawEcho(HandlerBase):
     def __init__(self, clientInfo):
-        self.clientInfo = clientInfo
-        self.outData = ["handler: %s. type \"%s\" to quit"%(self.__class__.__name__, STOP_WORD)]
+        super(RawEcho, self).__init__(clientInfo)
+        self.outData = [self.getWelcomeInfo()]
+        self.startWriteMonitor()
 
-    def __str__(self):
-        ret = ["(%s)"%(self.__class__.__name__)]
-        for attrName in dir(self):
-            attr = getattr(self, attrName)
-            if attrName[0:2] == "__":
-                continue
-            if type(attr) not in SHOW_TYPES:
-                continue
-            ret.append("%s=%s"%(attrName, attr))
-        return ",".join(ret)
-
-    def log(self, msg):
-        utils.log(msg, self.__class__.__name__)
-
-    def debug(self, msg):
-        utils.logDebug(msg, self.__class__.__name__)
-
-    def error(self, msg):
-        utils.logError(msg, self.__class__.__name__)
+    def getWelcomeInfo(self):
+        return "type \"%s\" to quit"%STOP_WORD
 
     def read(self, data):
         if not data:
+            self.close()
             return
-        data = data.rstrip()
+        _d = data.rstrip()
+        if _d == STOP_WORD:
+            self.write("Bye bye!\n")
+            self.close()
         self.setOutput(data)
-        self.startWriteMonitor()
 
     def startWriteMonitor(self):
+        if not self.clientInfo.handler:
+            return
         for data in self.getOutput():
-            if data == STOP_WORD:
-                self.clientInfo.write("Bye bye!\n")
-                self.clientInfo.close()
-                return
-            self.clientInfo.write(data+"\n")
-        self.clientInfo.changeHandler()
+            self.write(data)
+        utils.callback(0.5, self.startWriteMonitor)
 
-    """
-    子类请根据需求来通过data来获得需要输出的内容。
-    结束就写个end在列表里面
-    """
     def setOutput(self, data):
         self.outData.append(data)
 
@@ -59,22 +40,15 @@ class RawEcho(object):
             yield data
         return
 
-    def close(self):
-        return
-
 class HttpEcho(RawEcho):
-    def __init__(self, clientInfo):
-        super(HttpEcho, self).__init__(clientInfo)
-        self.outData = ["""HTTP/1.1 200 OK
-Content-Type: text/html; charset=GBK
-Connection: close
-Server: HttpEcho by cmServer
-
+    def getWelcomeInfo(self):
+        return """%s
 welcome to my server. now handler is %s
-\n\n"""%self.__class__.__name__]
+\n\n""" % (utils.getHttpHeader(), self.__class__.__name__)
 
     def setOutput(self, data):
         self.outData.append("<pre>")
         self.outData.append(data)
         self.outData.append("</pre>")
-        self.outData.append(STOP_WORD)
+        utils.callback(2, self.close)
+

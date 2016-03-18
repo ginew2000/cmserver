@@ -5,6 +5,7 @@ import time, os, sys, traceback
 
 LOG_FILE_SERVER = "logs/server.log"
 LOG_FILE_HANDLER = "logs/%s.log"
+NOW_CALLBACK_TIMERS = set()
 
 loop = None
 def getLibUVLoop():
@@ -105,9 +106,25 @@ def runCmd(cmd, onReadCallback=None, onDoneCallback=None):
 def cb(timer)
 """
 def callback(waitTime, cb):
+    def stopTimer(timer):
+        timer.stop()
+        timer.close()
+        NOW_CALLBACK_TIMERS.remove(timer)
+        cb()
+        
     loop = getLibUVLoop()
     timer = pyuv.Timer(loop)
-    timer.start(cb, waitTime, 0)
+    timer.start(stopTimer, waitTime, 0)
+    NOW_CALLBACK_TIMERS.add(timer)
+
+def getHttpHeader(title="cmServer"):
+    return """HTTP/1.1 200 OK
+Content-Type: text/html; charset=GBK
+Connection: close
+Server: HttpEcho by cmServer
+
+<html><head><title>%s</title></head><body>"""% title
+
 
 def main():
     i = 10

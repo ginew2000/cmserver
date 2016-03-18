@@ -14,7 +14,7 @@ URL_PATTERN = [
     ("^/reload$", REQ_TYPE_RAW, "handler.debug.ReloadHandlers"),
     ("^/eval$", REQ_TYPE_RAW, "handler.debug.EvalHandler"),
     ("^/info$", REQ_TYPE_RAW, "handler.get_info.GetInfo"),
-    ("^/test$", REQ_TYPE_RAW, "handler.test.Test"),
+    ("^/test$", REQ_TYPE_RAW, "handler.base.HandlerBase"),
     ("^/log$", REQ_TYPE_RAW, "handler.get_log.GetLog"),
     ("^/log$", REQ_TYPE_HTTP, "handler.get_log.GetLogFromWeb"),
 ]

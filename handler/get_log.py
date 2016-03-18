@@ -1,7 +1,7 @@
 # -*- coding:gbk -*-
 
-from echo import RawEcho
-import client_info, msgs, url_pattern, utils
+from base import HandlerBase
+import utils
 import time, sys
 
 MESSAGE_LOG_PATH = "/home/zfy/mf/bigworld/tools/server/"
@@ -55,10 +55,9 @@ FILTER_LOG_LEVELS_LIST = reversed([
 ]) 
 FILTER_LOG_LEVELS = int("".join(FILTER_LOG_LEVELS_LIST), 2)
 
-class GetLog(RawEcho):
+class GetLog(HandlerBase):
     def __init__(self, clientInfo):
         super(GetLog, self).__init__(clientInfo)
-        self.outData = []
         self.showCols = SHOW_COLS
         self.queryPara = {
             "start"     : 0,    ##查询开始时间
@@ -75,19 +74,14 @@ class GetLog(RawEcho):
     
     def read(self, data):
         if data == None:
-            self.clientInfo.close()
+            self.close()
             return
         keyWords = data.rstrip()
         if keyWords == STOP_WORD:
             self.close()
-            self.clientInfo.changeHandler()
-
-    def write(self, msg):
-        self.clientInfo.write(msg)
 
     def _writeEntry(self, callb):
         if self.stopQuery:
-            callb = None
             return
         logCount = self.query.getProgress()[1]
         i = 0
@@ -100,11 +94,8 @@ class GetLog(RawEcho):
         self.query.resume()
         utils.callback(INTERVAL, callb)
 
-    def _doGetLog(self, fromTime, toTime, timer=None):
+    def _doGetLog(self, fromTime, toTime):
         if self.stopQuery:
-            timer.stop()
-            timer.close()
-            timer = None
             return
         nowTime = time.time()
         if fromTime > nowTime - 2: ##文件系统需要2秒的缓存，所以至少要把起始时间设成2秒前，不然拿不到东西
@@ -133,7 +124,7 @@ class GetLog(RawEcho):
         self.stopQuery = True
         self.query = None
         self.mlog = None
-
+        super(GetLog, self).close()
 
 class GetLogFromWeb(GetLog):
     def startReadLog(self, fromTime=None, toTime=None):
@@ -141,15 +132,10 @@ class GetLogFromWeb(GetLog):
         super(GetLogFromWeb, self).startReadLog(fromTime, toTime)
 
     def sendResponseHead(self):
-        HTTP_HEAD = """HTTP/1.1 200 OK
-Content-Type: text/html; charset=GBK
-Connection: close
-Server: HttpEcho by cmServer
-
-<html><head><title>游戏log</title></head>
+        HTTP_HEAD = """%s
 <style>
 .log {font-size: 9pt;}
-</style><body>
+</style>
 <script>
 function scrollWindow(){
   scroll(0, 100000);
@@ -157,24 +143,16 @@ function scrollWindow(){
 }
 scrollWindow()
 </script>
-"""
-        self.clientInfo.write(HTTP_HEAD)
+""" % utils.getHttpHeader(title="showlog service")
+
+        self.write(HTTP_HEAD)
         self.sendKeepAliveToClient()
 
-    def sendKeepAliveToClient(self, timer=None):
-        if timer:
-            if self.stopQuery:
-                return
-            self.clientInfo.write("<!--  keep alive -->\n")
+    def sendKeepAliveToClient(self):
+        if self.stopQuery:
+            return
+        self.write("<!--  keep alive -->\n")
         utils.callback(30, self.sendKeepAliveToClient)
 
-    def read(self, data):
-        if data == None:
-            self.clientInfo.close()
-            return
-        keyWords = data.rstrip()
-        if keyWords == STOP_WORD:
-            self.clientInfo.close()
-
     def write(self, msg):
-        self.clientInfo.write("<div class=log>%s</div>"%msg)
+        super(GetLogFromWeb, self).write(("<div class=log>%s</div>"%msg)

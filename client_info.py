@@ -5,13 +5,12 @@ import utils, msgs
 import pyuv
 import time, weakref
 clientsMgr = None
-nowCls = weakref.WeakValueDictionary()
+nowCls = set()
 def onHandlerDone(obj):
     print "onHandlerDone", obj
-    objId = id(obj)
-    if objId in nowCls:
-        del nowCls[objId]
-    print "nowCls: %s"%nowCls.values()
+    if obj in nowCls:
+        nowCls.remove(obj)
+    print "nowCls: %s"%nowCls
 
 """
 客户端类。管理客户端的读写与初始化。
@@ -29,7 +28,7 @@ class Client(object):
             self.close()
         handler = handlerClass(self)
         weakR = weakref.ref(handler, onHandlerDone)
-        nowCls[id(weakR)] = handler
+        nowCls.add(weakR)
         self.handler = handler
 
     def changeHandler(self):
@@ -53,11 +52,9 @@ class Client(object):
 
     def close(self):
         if self.handler:
-            self.handler.close()
             self.handler = None
         getClientMgr().closeClient(self.fd)
         #utils.callback(1, doHunt)
-        print "close  nowCls: %s"%nowCls.values()
 
 def doHunt(timer):
     print "doHunt"
@@ -89,7 +86,8 @@ class ClientsMgr(object):
     def closeClient(self, fd):
         if fd in self.clientsInfo:
             del self.clientsInfo[fd]
-        fd.close()
+        if not fd.closed:
+            fd.close()
         utils.logDebug(msgs.NOW_CLIENTS_COUNT % len(self.clientsInfo))
 
 #-----------------------------------------------------#
