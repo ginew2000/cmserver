@@ -190,13 +190,29 @@ class GetLogFromWeb(GetLogBase, HttpHandlerBase):
         styleAndScript = """
 <style>
 .log {font-size: 9pt;}
+.highlight {color: red; font-weight:bold}
 </style>
 <script>
+document.domain = "pangu.netease.com"
+scrollFlag = true
 function scrollWindow(){
-  scroll(0, document.body.scrollHeight);
+  if(scrollFlag){
+    scroll(0, document.body.scrollHeight);
+  }
   setTimeout('scrollWindow()', 200);
 }
 scrollWindow()
+
+String.prototype.replaceAll = function(oldStr, newStr) {
+   return this.replace(new RegExp(oldStr,"g"),newStr); 
+}
+highLightContent = ""
+function s(line){
+    if(highLightContent != ""){
+        line = line.replaceAll(highLightContent, "<span class=highlight>"+highLightContent+"</span>")
+    }
+    document.write("<div class=log>"+line+"</div>")
+}
 </script>
 """ 
         self.write(styleAndScript)
@@ -211,7 +227,8 @@ scrollWindow()
 
     def write(self, msg):
         if getattr(self, "startSendLog", False):
-            super(GetLogFromWeb, self).write("<div class=log>%s</div>"%msg)
+            msg = msg.replace("\"", "\\\"")
+            super(GetLogFromWeb, self).write("<script>s(\"%s\")</script>"%msg.rstrip())
         else:
             super(GetLogFromWeb, self).write(msg)
 
