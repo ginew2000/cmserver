@@ -3,7 +3,7 @@
 import url_pattern
 import utils, msgs
 import pyuv
-import time, weakref
+import time, weakref, urlparse
 clientsMgr = None
 nowCls = set()
 def onHandlerDone(obj):
@@ -22,11 +22,18 @@ class Client(object):
         self.handler = None
 
     def initHandler(self, data):
-        handlerClass = url_pattern.getHandlerFromData(data)
+        handlerClass, uri = url_pattern.getHandlerFromData(data)
         if not handlerClass:
             utils.logError(msgs.CAN_NOT_FIND_HANDLER % data)
             self.close()
-        handler = handlerClass(self)
+        handler = None
+        if uri:
+            uriInfo = urlparse.urlsplit(uri)
+            path = uriInfo[2]
+            req = urlparse.parse_qs(uriInfo[3])
+            handler = handlerClass(self, path = path, req=req, uri=uri)
+        else:
+            handler = handlerClass(self)
         weakR = weakref.ref(handler, onHandlerDone)
         nowCls.add(weakR)
         self.handler = handler

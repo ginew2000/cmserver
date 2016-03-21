@@ -39,3 +39,21 @@ class HandlerBase(object):
     def close(self):
         self.clientInfo.close()
 
+
+class HttpHandlerBase(HandlerBase):
+    def __init__(self, clientInfo, path = "/", req = {}, uri = "/"):
+        super(HttpHandlerBase, self).__init__(clientInfo)
+        self.path = path
+        self.req = req
+        self.uri = uri
+        self.doInit()
+        self.sendResponseHeader()
+
+    def doInit(self):
+        pass
+
+    def getTitle(self):
+        return self.__class__.__name__
+
+    def sendResponseHeader(self):
+        self.write(utils.getHttpHeader(self.getTitle()))

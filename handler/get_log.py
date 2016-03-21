@@ -1,6 +1,6 @@
 # -*- coding:gbk -*-
 
-from base import HandlerBase
+from base import HandlerBase, HttpHandlerBase
 import utils
 import time, sys
 
@@ -30,16 +30,16 @@ SHOW_COLS_LIST = reversed([
 SHOW_COLS = int("".join(SHOW_COLS_LIST), 2)
 
 ##过滤器: 进程掩码，和/var/log/bigworld/message_logger/component_names中的顺序有关，每台机不一定一样
-VALID_PROCS = ("DBMgr", "Tools", "CellAppMgr", "BaseApp", "LoginApp", "CellApp", "BaseAppMgr")
-SERVER_LOG_DEFS = {}
-i = 0
-for line in open("%s/component_names"%MESSAGE_LOG_ROOT):
-    line = line.strip()
-    if line in VALID_PROCS:
-        SERVER_LOG_DEFS[line] = 2**i
-    i += 1
-
-FILTER_PROCS = sum(SERVER_LOG_DEFS.values())
+VALID_PROCS = set(["DBMgr", "Tools", "CellAppMgr", "BaseApp", "LoginApp", "CellApp", "BaseAppMgr"])
+def getProcMask(procs=VALID_PROCS):
+    mask = 0
+    i = 0
+    for line in open("%s/component_names"%MESSAGE_LOG_ROOT):
+        line = line.strip()
+        if line in procs:
+            mask += 2**i
+        i += 1
+    return mask
 
 ##过滤器：log级别
 FILTER_LOG_LEVELS_LIST = reversed([
@@ -55,30 +55,14 @@ FILTER_LOG_LEVELS_LIST = reversed([
 ]) 
 FILTER_LOG_LEVELS = int("".join(FILTER_LOG_LEVELS_LIST), 2)
 
-class GetLog(HandlerBase):
-    def __init__(self, clientInfo):
-        super(GetLog, self).__init__(clientInfo)
-        self.showCols = SHOW_COLS
-        self.queryPara = {
-            "start"     : 0,    ##查询开始时间
-            "end"       : 0,    ##查询结束时间（不包括）
-            "uid"       : 1001, ##用户id
-            "procs"     : FILTER_PROCS,     ##过滤器：进程掩码
-            "severities": FILTER_LOG_LEVELS, ##过滤器：log级别
-            "message"   : "", ##过滤器：内容
-        }
+class GetLogBase(object):
+    def initFilter(self):
         self.stopQuery = False
         self.mlog = bwlog.BWLog( MESSAGE_LOG_ROOT )
         self.query = None
-        self.startReadLog()
-    
-    def read(self, data):
-        if data == None:
-            self.close()
-            return
-        keyWords = data.rstrip()
-        if keyWords == STOP_WORD:
-            self.close()
+        ## 下面2个在子类中重载
+        self.showCols = 0
+        self.queryPara = {}
 
     def _writeEntry(self, callb):
         if self.stopQuery:
@@ -102,6 +86,7 @@ class GetLog(HandlerBase):
             fromTime = nowTime - 2
         if fromTime >= toTime:
             self.write("----finished!----\n")
+            self.close()
             return
         endTime = fromTime + MAX_LOG_DURATION
         endTime = min(endTime, toTime, nowTime)
@@ -112,6 +97,8 @@ class GetLog(HandlerBase):
         self._writeEntry(callb)
 
     def startReadLog(self, fromTime=None, toTime=None):
+        if not hasattr(self, "showCols") or not hasattr(self, "queryPara"):
+            self.initFilter()
         nowTime = time.time()
         fromTime = fromTime or (nowTime - 2)
         toTime = toTime or (nowTime + 86400)
@@ -124,35 +111,110 @@ class GetLog(HandlerBase):
         self.stopQuery = True
         self.query = None
         self.mlog = None
-        super(GetLog, self).close()
 
-class GetLogFromWeb(GetLog):
-    def startReadLog(self, fromTime=None, toTime=None):
-        self.sendResponseHead()
-        super(GetLogFromWeb, self).startReadLog(fromTime, toTime)
 
-    def sendResponseHead(self):
-        HTTP_HEAD = """%s
+class GetLogFromRaw(GetLogBase, HandlerBase):
+    def __init__(self, clientInfo):
+        super(GetLogFromRaw, self).__init__(clientInfo)
+        self.initFilter()
+
+    def initFilter(self):
+        super(GetLogFromRaw, self).initFilter()
+        self.showCols = SHOW_COLS
+        self.queryPara = {
+            "start"     : 0,    ##查询开始时间
+            "end"       : 0,    ##查询结束时间（不包括）
+            "uid"       : 1001, ##用户id
+            "procs"     : getProcMask(),     ##过滤器：进程掩码
+            "severities": FILTER_LOG_LEVELS, ##过滤器：log级别
+            "message"   : "", ##过滤器：内容
+        }
+        self.startReadLog()
+
+    def read(self, data):
+        if data == None:
+            self.close()
+            return
+        keyWords = data.rstrip()
+        if keyWords == STOP_WORD:
+            self.close()
+
+    def close(self):
+        GetLogBase.close(self)
+        HandlerBase.close(self)
+
+class GetLogFromWeb(GetLogBase, HttpHandlerBase):
+    def __init__(self, *args, **kwargs):
+        super(GetLogFromWeb, self).__init__(*args, **kwargs)
+        self.initFilter()
+       
+    def initFilter(self):
+        super(GetLogFromWeb, self).initFilter()
+        fromTime = self.req.get("fromtime", None)
+        toTime  = self.req.get("totime", None)
+        if fromTime:
+            fromTime = float(fromTime[0])
+        if toTime:
+            toTime = float(toTime[0])
+        uid = int(self.req.get("uid")[0])
+        procs = self.req.get("procs")
+        if procs:
+            procs = getProcMask(set(procs))
+        else:
+            procs = getProcMask()
+        logLevel = self.req.get("loglevel")
+        if logLevel:
+            logLevel = sum([2**int(i) for i in logLevel])
+        else:
+            logLevel = FILTER_LOG_LEVELS
+        cols = self.req.get("cols")
+        if cols:
+            cols = sum([2**int(i) for i in cols])
+        else:
+            cols = SHOW_COLS
+        message = self.req.get("message", [""])[0]
+
+        self.showCols = cols
+        self.queryPara = {
+            "start"     : 0,
+            "end"       : 0,
+            "uid"       : uid,
+            "procs"     : procs,
+            "severities": logLevel,
+            "message"   : message,
+        }
+        self.startReadLog(fromTime, toTime)
+
+    def sendResponseHeader(self):
+        super(GetLogFromWeb, self).sendResponseHeader()
+        styleAndScript = """
 <style>
 .log {font-size: 9pt;}
 </style>
 <script>
 function scrollWindow(){
-  scroll(0, 100000);
+  scroll(0, document.body.scrollHeight);
   setTimeout('scrollWindow()', 200);
 }
 scrollWindow()
 </script>
-""" % utils.getHttpHeader(title="showlog service")
-
-        self.write(HTTP_HEAD)
+""" 
+        self.write(styleAndScript)
+        self.startSendLog = True
         self.sendKeepAliveToClient()
-
+        
     def sendKeepAliveToClient(self):
-        if self.stopQuery:
+        if getattr(self, "stopQuery", False):
             return
         self.write("<!--  keep alive -->\n")
         utils.callback(30, self.sendKeepAliveToClient)
 
     def write(self, msg):
-        super(GetLogFromWeb, self).write(("<div class=log>%s</div>"%msg)
+        if getattr(self, "startSendLog", False):
+            super(GetLogFromWeb, self).write("<div class=log>%s</div>"%msg)
+        else:
+            super(GetLogFromWeb, self).write(msg)
+
+    def close(self):
+        GetLogBase.close(self)
+        HttpHandlerBase.close(self)

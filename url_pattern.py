@@ -15,8 +15,8 @@ URL_PATTERN = [
     ("^/eval$", REQ_TYPE_RAW, "handler.debug.EvalHandler"),
     ("^/info$", REQ_TYPE_RAW, "handler.get_info.GetInfo"),
     ("^/test$", REQ_TYPE_RAW, "handler.base.HandlerBase"),
-    ("^/log$", REQ_TYPE_RAW, "handler.get_log.GetLog"),
-    ("^/log$", REQ_TYPE_HTTP, "handler.get_log.GetLogFromWeb"),
+    ("^/log$", REQ_TYPE_RAW, "handler.get_log.GetLogFromRaw"),
+    ("^/log\?", REQ_TYPE_HTTP, "handler.get_log.GetLogFromWeb"),
 ]
 HTTP_PREFIX_RE = re.compile("(?P<method>\w+?) (?P<uri>.+?) HTTP/1.\d")
 URL_PREFIX_RE = {}
@@ -51,15 +51,15 @@ def getHandlerFromData(data):
         for prefixRe, urlInfo in URL_PREFIX_RE[REQ_TYPE_HTTP].iteritems():
             matchObj = prefixRe.search(uri)
             if matchObj:
-                return getCls(urlInfo[2])
+                return getCls(urlInfo[2]), uri
         utils.logDebug("use httpraw: [%s]"%uri)
-        return getCls(DEFAULT_HTTP_HANDLER)
+        return getCls(DEFAULT_HTTP_HANDLER), uri
 
     for prefixRe, urlInfo in URL_PREFIX_RE[REQ_TYPE_RAW].iteritems():
         matchObj = prefixRe.search(firstLine)
         if not matchObj:
             continue
-        return getCls(urlInfo[2])
+        return getCls(urlInfo[2]), None
     utils.logDebug("use raw: [%s]"%firstLine)
-    return getCls(DEFAULT_RAW_HANDLER)
+    return getCls(DEFAULT_RAW_HANDLER), None
 

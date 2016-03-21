@@ -1,7 +1,7 @@
 # -*- coding:gbk -*-
 
-import utils, time
-from base import HandlerBase
+import utils, time, urlparse
+from base import HandlerBase, HttpHandlerBase
 
 STOP_WORD = "end"
 
@@ -40,15 +40,16 @@ class RawEcho(HandlerBase):
             yield data
         return
 
-class HttpEcho(RawEcho):
-    def getWelcomeInfo(self):
-        return """%s
-welcome to my server. now handler is %s
-\n\n""" % (utils.getHttpHeader(), self.__class__.__name__)
+class HttpEcho(HttpHandlerBase):
+    def read(self, data):
+        if not data:
+            self.close()
+            return
+        self.write("<pre>%s</pre>"%data)
 
-    def setOutput(self, data):
-        self.outData.append("<pre>")
-        self.outData.append(data)
-        self.outData.append("</pre>")
-        utils.callback(2, self.close)
+        self.write("<hr>path = %s<br>"%self.path)
+        self.write("req = %s<br>"%self.req)
+        self.write("uri = %s<br>"%self.uri)
+
+        self.close()
 
