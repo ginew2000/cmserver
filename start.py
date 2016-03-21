@@ -15,7 +15,7 @@ def startServer():
         signal_h.close()
         server.close()
 
-    print "PyUV version %s" % pyuv.__version__
+    utils.log("PyUV version %s" % pyuv.__version__)
 
     loop = utils.getLibUVLoop()
     server = pyuv.TCP(loop)
@@ -26,7 +26,7 @@ def startServer():
     signal_h.start(signal_cb, signal.SIGINT)
 
     loop.run()
-    print "Stopped!"
+    utils.log("Stopped!")
 
 def main():
     sys.excepthook = utils.exceptHook

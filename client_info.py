@@ -7,10 +7,10 @@ import time, weakref, urlparse
 clientsMgr = None
 nowCls = set()
 def onHandlerDone(obj):
-    print "onHandlerDone", obj
+    #print "onHandlerDone", obj
     if obj in nowCls:
         nowCls.remove(obj)
-    print "nowCls: %s"%nowCls
+    #print "nowCls: %s"%nowCls
 
 """
 客户端类。管理客户端的读写与初始化。

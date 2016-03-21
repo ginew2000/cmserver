@@ -19,3 +19,4 @@ __pycache__/
 .tox/
 deps/
 docs/_build/
+logs/

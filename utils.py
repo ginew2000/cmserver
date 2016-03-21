@@ -21,8 +21,6 @@ def log(msg, handler=None):
 
     if type(msg) != str:
         msg = str(msg)
-    print handler or "SERVER", msg
-    return
 
     if msg[-1] != "\n":
         msg = msg + "\n"
@@ -67,7 +65,7 @@ def exceptHook(ty, val, tb):
                 varMsg = varMsg[:1000] + '...(more)'
             localVars = 'Locals (only top stack frame):\n%s\n' % varMsg
     except:
-        print "unknow exception", str(traceback.format_exc())
+        logError("unknow exception", str(traceback.format_exc()))
     
     content = [localVars or "\n"]
     for e in traceback.format_exception(ty, val, tb):
@@ -127,6 +125,7 @@ Server: HttpEcho by cmServer
 
 
 def main():
+    """just for test"""
     i = 10
     while i > 0:
         print i
