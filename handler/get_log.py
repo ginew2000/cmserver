@@ -76,10 +76,7 @@ class GetLogBase(object):
             self.write( result.format( self.showCols ) )
             i += 1
         self.query.resume()
-        if i > 100:
-            utils.callback(INTERVAL, callb)
-        else:
-            utils.callback(0.1, callb)
+        utils.callback(INTERVAL, callb)
             
 
     def _doGetLog(self, fromTime, toTime):
@@ -233,7 +230,9 @@ function s(line){
         if getattr(self, "startSendLog", False):
             msg = msg.replace("\"", "\\\"")
             msg = msg.replace(" ", "&nbsp;")
-            super(GetLogFromWeb, self).write("<script>s(\"%s\")</script>"%msg.rstrip())
+            msg = msg.replace("\n", "<br>")
+            msg = msg.replace("\r", "")
+            super(GetLogFromWeb, self).write("<script>s(\"%s\")</script>\n"%msg.rstrip())
         else:
             super(GetLogFromWeb, self).write(msg)
 
