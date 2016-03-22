@@ -76,7 +76,11 @@ class GetLogBase(object):
             self.write( result.format( self.showCols ) )
             i += 1
         self.query.resume()
-        utils.callback(INTERVAL, callb)
+        if i > 100:
+            utils.callback(INTERVAL, callb)
+        else:
+            utils.callback(0.1, callb)
+            
 
     def _doGetLog(self, fromTime, toTime):
         if self.stopQuery:
@@ -206,7 +210,7 @@ scrollWindow()
 String.prototype.replaceAll = function(oldStr, newStr) {
    return this.replace(new RegExp(oldStr,"g"),newStr); 
 }
-highLightContent = ""
+highLightContent = "%s"
 function s(line){
     if(highLightContent != ""){
         line = line.replaceAll(highLightContent, "<span class=highlight>"+highLightContent+"</span>")
@@ -214,7 +218,7 @@ function s(line){
     document.write("<div class=log>"+line+"</div>")
 }
 </script>
-""" 
+""" % self.req.get("message", [""])[0]
         self.write(styleAndScript)
         self.startSendLog = True
         self.sendKeepAliveToClient()
@@ -228,6 +232,7 @@ function s(line){
     def write(self, msg):
         if getattr(self, "startSendLog", False):
             msg = msg.replace("\"", "\\\"")
+            msg = msg.replace(" ", "&nbsp;")
             super(GetLogFromWeb, self).write("<script>s(\"%s\")</script>"%msg.rstrip())
         else:
             super(GetLogFromWeb, self).write(msg)
