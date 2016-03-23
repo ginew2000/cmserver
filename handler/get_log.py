@@ -190,7 +190,7 @@ class GetLogFromWeb(GetLogBase, HttpHandlerBase):
         super(GetLogFromWeb, self).sendResponseHeader()
         styleAndScript = """
 <style>
-.log {font-size: 9pt;}
+.log {font-size: 9pt; font-family: "courier new"}
 .highlight {color: red; font-weight:bold}
 </style>
 <script>
